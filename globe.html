@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Display a map on a webpage</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.js"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    #submitMsg {
+      background-color: #571b1b;
+      color: rgb(231, 207, 207);
+      padding: 6px 10px;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    #submitMsg:hover {
+      background-color: #4a527c;
+    }
+
+    .mapboxgl-popup-content {
+      background-color: #e9cfcf;
+      color: #f4cfcf;
+      border-radius: 10px;
+      padding: 15px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      font-family: sans-serif;
+    }
+
+    .mapboxgl-popup-tip {
+      border-top-color: #222 !important;
+    }
+
+    #floating-letters {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.floating-letter {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0.6;
+  color: rgba(255,255,255,0.7);
+  animation: floatAnim 12s linear infinite;
+  will-change: transform;
+  user-select: none;
+  font-family: serif;
+}
+
+@keyframes floatAnim {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+  100% { transform: translate(-20px, -100px) rotate(360deg); opacity: 0; }
+}
+
+  </style>
+</head>
+
+
+<body>
+
+    <audio id="ambient-audio" src="space-158081.mp3" autoplay loop></audio>
+
+    <div id="floating-letters"></div>
+
+<div id="map"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDVhXiVK3Lx0KDVi_z1XVd4jQXloviyzKI",
+    authDomain: "experience-environments.firebaseapp.com",
+    projectId: "experience-environments",
+    storageBucket: "experience-environments.appspot.com",
+    messagingSenderId: "443558487651",
+    appId: "1:443558487651:web:3151be31ea6184f7f3ba56",
+    measurementId: "G-VJL0P8ZS1H"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  mapboxgl.accessToken = 'pk.eyJ1IjoidmFueWFnb2VsIiwiYSI6ImNtYTNxeGRseTAwMmMybnF4MHI4ZjN2Z3gifQ.ffn1ysG_PDpfmSyWez-5Lw';
+  const map = new mapboxgl.Map({
+    container: 'map',
+    center: [-74.5, 40],
+    zoom: 1
+  });
+
+  map.on('style.load', () => {
+    map.setFog({
+      color: 'rgb(245, 149, 184)',
+      'high-color': 'rgb(245, 149, 200)',
+      'horizon-blend': 0.05,
+      'space-color': 'rgb(40, 20, 40)',
+      'star-intensity': 0.6
+    });
+  });
+
+  map.on('click', (e) => {
+    const lngLat = e.lngLat;
+    const marker = new mapboxgl.Marker({ color: 'blue' })
+      .setLngLat(lngLat)
+      .addTo(map);
+
+    const popupContent = document.createElement('div');
+    popupContent.innerHTML = `
+      <canvas id="message-canvas" width="200" height="100" style="border:1px solid #aaa; border-radius:6px; background:#fff;"></canvas><br>
+      <button id="submitMsg">Submit</button>
+    `;
+
+    const popup = new mapboxgl.Popup({ offset: 25, closeOnClick: false })
+      .setDOMContent(popupContent)
+      .setLngLat(lngLat)
+      .addTo(map);
+
+    marker.setPopup(popup).togglePopup();
+
+    const canvas = popupContent.querySelector("#message-canvas");
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+
+    canvas.addEventListener("pointerdown", (e) => {
+      drawing = true;
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (drawing) {
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+    });
+
+
+
+    canvas.addEventListener("pointerup", () => drawing = false);
+    canvas.addEventListener("pointerleave", () => drawing = false);
+
+    popupContent.querySelector('#submitMsg').onclick = async () => {
+      const dataURL = canvas.toDataURL();
+      popup.setHTML(`<strong>Handwritten:</strong><br><img src="${dataURL}" style="width:200px;border-radius:8px;">`);
+
+      // Save to Firestore
+      try {
+        await addDoc(collection(db, "e&e"), {
+          imageData: dataURL,
+          lat: lngLat.lat,
+          lng: lngLat.lng,
+          timestamp: new Date().toISOString()
+        });
+        console.log("Message saved.");
+      } catch (error) {
+        console.error("Error saving message:", error);
+      }
+    };
+  });
+
+  import { getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+async function loadMessages() {
+  const querySnapshot = await getDocs(collection(db, "e&e"));
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+
+    const marker = new mapboxgl.Marker({ color: 'blue' })
+      .setLngLat([data.lng, data.lat])
+      .addTo(map);
+
+      const popup = new mapboxgl.Popup({ offset: 25, closeOnClick: false })
+  .setHTML(`<strong>Handwritten:</strong><br><img src="${data.imageData}" style="width:200px;border-radius:8px;">`)
+  .setLngLat([data.lng, data.lat]);
+
+marker.setPopup(popup).togglePopup(); // 🧠 this forces the popup to show
+
+  });
+}
+
+loadMessages();
+let rotating = true;
+let userInteracted = false;
+let lastInteractionTime = Date.now();
+
+
+// Auto-rotate function
+function rotateGlobe() {
+  if (rotating && !userInteracted) {
+    const center = map.getCenter();
+    map.setCenter([center.lng + 0.05, center.lat]);
+  }
+
+  requestAnimationFrame(rotateGlobe);
+}
+rotateGlobe(); // start it
+
+// Pause on interaction
+map.on('mousedown', () => {
+  userInteracted = true;
+  lastInteractionTime = Date.now();
+});
+
+// Resume after 5 seconds of inactivity
+map.on('mouseup', () => {
+  setTimeout(() => {
+    if (Date.now() - lastInteractionTime >= 7000) {
+      userInteracted = false;
+    }
+  }, 5000);
+});
+
+const container = document.getElementById('floating-letters');
+const scripts = ['م', 'क', 'あ', 'Ж', '你', 'ㄱ', 'א', 'ሀ', 'α', 'ศ', '𓂀'];
+
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+window.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+function spawnLetter() {
+  const letter = document.createElement('span');
+  letter.className = 'floating-letter';
+  letter.textContent = scripts[Math.floor(Math.random() * scripts.length)];
+
+  // Start somewhere loosely near the cursor, but offset
+  const offsetX = (Math.random() - 0.5) * 200;
+  const offsetY = (Math.random() - 0.5) * 200;
+
+  letter.style.left = `${mouseX + offsetX}px`;
+  letter.style.top = `${mouseY + offsetY}px`;
+  letter.style.fontSize = `${16 + Math.random() * 14}px`;
+  letter.style.animationDuration = `${8 + Math.random() * 6}s`;
+  letter.style.color = `hsl(${Math.random() * 360}, 40%, 70%)`;
+
+  container.appendChild(letter);
+
+  setTimeout(() => container.removeChild(letter), 15000);
+}
+
+// Drift in at intervals
+setInterval(spawnLetter, 700);
+
+function enableAudio() {
+  audio.play().then(() => {
+    console.log("Audio started");
+  }).catch((err) => {
+    console.warn("Still blocked:", err);
+  });
+
+  // Only need to trigger once
+  window.removeEventListener("click", enableAudio);
+  window.removeEventListener("touchstart", enableAudio);
+}
+
+window.addEventListener("click", enableAudio);
+window.addEventListener("touchstart", enableAudio);
+
+const audio = document.getElementById('ambient-audio');
+audio.volume = 1;
+
+// If browser blocks autoplay, wait for first gesture
+const tryPlayAudio = () => {
+  audio.play()
+    .then(() => console.log("🎧 Ambient audio playing"))
+    .catch((err) => console.warn("Blocked by browser:", err));
+};
+
+// First try it immediately
+tryPlayAudio();
+
+// Then retry on user interaction if blocked
+window.addEventListener("click", tryPlayAudio, { once: true });
+window.addEventListener("touchstart", tryPlayAudio, { once: true });
+
+</script>
+
+</body>
+</html>

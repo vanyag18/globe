@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Language Input Page</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: url('background.png') no-repeat center center fixed;
+      background-size: cover;
+    }
+
+    .container {
+      position: absolute;
+      top: -5%;
+      right: 10%;
+      width: 450px;
+      z-index: 3;
+    }
+
+    .container img.diary {
+      width: 140%;
+      height: auto;
+      display: block;
+    }
+
+    .arrow {
+  position: fixed;
+  bottom: 30px; /* adjust as needed */
+  left:45%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: fixed;
+  z-index: 5;
+  transition: ease-in 0.4s;
+ }
+
+.arrow:hover{
+  filter: drop-shadow(0 0 8px rgba(234, 75, 75, 0.8));
+  transform: scale(1.025);
+}
+
+ .arrow img:hover {
+filter: drop-shadow(rgb(255, 255, 255));
+ }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="diary2.png" alt="Diary" class="diary" />
+    <canvas id="message-canvas"></canvas>
+    <button id="submit-btn">Submit</button>
+<div class="arrow">
+    <a href="globe.html">
+    <img src="arrow.png" class ="arrow" />
+     </a>
+</div>
+    <div class="input-container">
+      <select id="country-select">
+        <option value="">Select your country</option>
+        <option value="India">India</option>
+        <option value="Nigeria">Nigeria</option>
+        <option value="Mexico">Mexico</option>
+        <option value="China">China</option>
+        <option value="Brazil">Brazil</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+  </div>
+</body>
+  
+</html>
